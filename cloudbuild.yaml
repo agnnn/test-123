@@ -7,7 +7,7 @@ steps:
       - compute
       - scp
       - '--recurse'
-      - '/workspace/'
+      - '/workspace'
       - '${_VM_INSTANCE}:~/my-php-app'
       - '--zone=${_ZONE}'
 
