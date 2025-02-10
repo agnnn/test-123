@@ -1,17 +1,17 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 steps:
-  # Sync the already fetched source code to the target VM
+  # Sync files from the Cloud Build workspace to the VM
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
       - scp
       - '--recurse'
-      - './*'
+      - '/workspace/*'
       - '${_VM_INSTANCE}:~/my-php-app'
       - '--zone=${_ZONE}'
 
-  # Deploy code and restart the Apache service
+  # Deploy code and restart Apache service on the VM
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
