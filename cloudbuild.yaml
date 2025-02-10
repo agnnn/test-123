@@ -1,22 +1,24 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 steps:
-  # Sync app files directly to VM
-  - name: 'gcr.io/cloud-builders/git'
-    entrypoint: 'bash'
+  # Sync the already fetched source code to the target VM
+  - name: 'gcr.io/cloud-builders/gcloud'
     args:
-      - '-c'
-      - |
-        git clone https://github.com/your-org/my-php-app.git /webapp
+      - compute
+      - scp
+      - '--recurse'
+      - './*'
+      - '${_VM_INSTANCE}:~/my-php-app'
+      - '--zone=${_ZONE}'
 
-  # Sync and deploy directly to the VM
+  # Deploy code and restart the Apache service
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
       - ssh
       - '${_VM_INSTANCE}'
       - '--zone=${_ZONE}'
-      - '--command="sudo rm -rf /var/www/html/* && sudo cp -r /webapp/* /var/www/html && sudo systemctl restart apache2"'
+      - '--command="sudo cp -r ~/my-php-app/* /var/www/html && sudo systemctl restart apache2"'
 substitutions:
   _VM_INSTANCE: "webapp-instance-20250210-150325"
   _ZONE: "us-central1-c"
