@@ -13,14 +13,14 @@ steps:
       - "scp"
       - "./artifact.zip"
       - "webapp-instance-20250210-150325:~/artifact.zip"
-      - "--zone=us-central1-a"  # Replace with your instance's actual zone
+      - "--zone=us-central1-c"  # Replace with your instance's actual zone
 
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
       - "ssh"
       - "webapp-instance-20250210-150325"
-      - "--zone=us-central1-a"  # Replace with your instance's actual zone
+      - "--zone=us-central1-c"  # Replace with your instance's actual zone
       - "--command"
       - "sudo unzip ~/artifact.zip -d /var/www/html && sudo systemctl restart apache2"
 substitutions:
