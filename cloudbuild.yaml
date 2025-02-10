@@ -1,3 +1,5 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
 steps:
   # Sync app files directly to VM
   - name: 'gcr.io/cloud-builders/git'
