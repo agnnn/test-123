@@ -13,14 +13,14 @@ steps:
       - "scp"
       - "./artifact.zip"
       - "webapp-instance-20250210-150325:~/artifact.zip"
-      - "--zone=us-central1-a"
+      - "--zone=us-central1-c"
 
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
       - "ssh"
       - "webapp-instance-20250210-150325"
-      - "--zone=us-central1-a"
+      - "--zone=us-central1-c"
       - "--command"
       - |
         "sudo apt-get update &&
