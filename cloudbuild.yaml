@@ -1,23 +1,26 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 steps:
-  # Download the artifact.zip from GCS and copy it to the VM
-  - name: 'gcr.io/cloud-builders/gcloud'
+  - name: "gcr.io/cloud-builders/gsutil"
     args:
-      - compute
-      - scp
-      - 'https://storage.cloud.google.com/test-pradeep-123ssx/app.zip'
-      - '${_VM_INSTANCE}:~/artifact.zip'
-      - '--zone=${_ZONE}'
+      - "cp"
+      - "gs://test-pradeep-123ssx/app.zip"
+      - "./artifact.zip"
 
-  # SSH into the VM to extract the zip and deploy the files
-  - name: 'gcr.io/cloud-builders/gcloud'
+  - name: "gcr.io/cloud-builders/gcloud"
     args:
-      - compute
-      - ssh
-      - '${_VM_INSTANCE}'
-      - '--zone=${_ZONE}'
-      - '--command="sudo apt update && sudo apt install -y unzip && unzip ~/artifact.zip -d ~/my-php-app && sudo cp -r ~/my-php-app/. /var/www/html && sudo systemctl restart apache2"'
+      - "compute"
+      - "scp"
+      - "./artifact.zip"
+      - "webapp-instance-20250210-150325:~/artifact.zip"
+
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "compute"
+      - "ssh"
+      - "webapp-instance-20250210-150325"
+      - "--command"
+      - "sudo unzip ~/artifact.zip -d /var/www/html && sudo systemctl restart apache2"
 substitutions:
   _VM_INSTANCE: "webapp-instance-20250210-150325"
   _ZONE: "us-central1-c"
