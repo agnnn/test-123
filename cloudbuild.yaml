@@ -1,7 +1,7 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 steps:
-  # Download the artifact.zip from GCS and copy it to the VMs
+  # Download the artifact.zip from GCS and copy it to the VM
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - compute
