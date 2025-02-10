@@ -1,6 +1,7 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 steps:
+  # test
   - name: "gcr.io/cloud-builders/gsutil"
     args:
       - "cp"
