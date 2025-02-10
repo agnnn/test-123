@@ -22,7 +22,7 @@ steps:
       - "webapp-instance-20250210-150325"
       - "--zone=us-central1-c"
       - "--command"
-      - "sudo apt-get update && sudo apt-get install -y unzip && sudo unzip ~/artifact.zip -d /var/www/html && sudo systemctl restart apache2"
+      - "sudo unzip -j ~/artifact.zip -d /var/www/html && sudo systemctl restart apache2"
 substitutions:
   _VM_INSTANCE: "webapp-instance-20250210-150325"
   _ZONE: "us-central1-c"
