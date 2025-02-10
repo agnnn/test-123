@@ -1,7 +1,7 @@
 options:
   logging: CLOUD_LOGGING_ONLY
 steps:
-  - name: "gcr.io/cloud-builders/gsutil"
+  - name: "gcr.io/cloud-builders/gsutil" #
     args:
       - "cp"
       - "gs://test-pradeep-123ssx/app.zip"
