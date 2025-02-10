@@ -7,7 +7,7 @@ steps:
     args:
       - '-c'
       - |
-        git clone https://github.com/your-org/my-php-app.git /workspace/app
+        git clone https://github.com/your-org/my-php-app.git /webapp
 
   # Sync and deploy directly to the VM
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -16,7 +16,7 @@ steps:
       - ssh
       - '${_VM_INSTANCE}'
       - '--zone=${_ZONE}'
-      - '--command="sudo rm -rf /var/www/html/* && sudo cp -r /workspace/app/* /var/www/html && sudo systemctl restart apache2"'
+      - '--command="sudo rm -rf /var/www/html/* && sudo cp -r /webapp/* /var/www/html && sudo systemctl restart apache2"'
 substitutions:
   _VM_INSTANCE: "webapp-instance-20250210-150325"
   _ZONE: "us-central1-c"
