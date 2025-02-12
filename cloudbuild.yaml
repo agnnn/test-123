@@ -1,0 +1,8 @@
+steps:
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        zip -r deployment-artifact.zip . -x .git/*
