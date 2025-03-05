@@ -41,7 +41,7 @@ steps:
         sudo apt-get update && sudo apt-get install -y unzip rsync
 
         TMP_DIR="/tmp/pradeeptest-${_BRANCH_NAME}"
-        FINAL_DESTINATION="/var/www/pradeeptest-${_BRANCH_NAME}"
+        FINAL_DEST="/var/www/pradeeptest-${_BRANCH_NAME}"
 
         echo "Cleaning up previous deployment..."
         sudo rm -rf "$TMP_DIR"
@@ -50,17 +50,17 @@ steps:
         echo "Extracting deployment ZIP..."
         sudo unzip -o ~/deployment-artifact.zip -d "$TMP_DIR"
 
-        echo "Syncing files to $FINAL_DESTINATION..."
-        sudo mkdir -p "$FINAL_DESTINATION"
-        sudo rsync -av --delete "$TMP_DIR/" "$FINAL_DESTINATION/"
+        echo "Syncing files to $FINAL_DEST..."
+        sudo mkdir -p "$FINAL_DEST"
+        sudo rsync -av --delete "$TMP_DIR/" "$FINAL_DEST/"
 
         echo "Setting correct ownership and permissions..."
-        sudo chown -R ubuntu:ubuntu "$FINAL_DESTINATION"
-        sudo chmod -R 775 "$FINAL_DESTINATION"
+        sudo chown -R ubuntu:ubuntu "$FINAL_DEST"
+        sudo chmod -R 775 "$FINAL_DEST"
 
-        if [ -d "$FINAL_DESTINATION/data/" ]; then
-          echo "Setting www-data ownership for $FINAL_DESTINATION/data/"
-          sudo chown -R www-data:www-data "$FINAL_DESTINATION/data/"
+        if [ -d "$FINAL_DEST/data/" ]; then
+          echo "Setting www-data ownership for $FINAL_DEST/data/"
+          sudo chown -R www-data:www-data "$FINAL_DEST/data/"
         fi
 
   # Step 5: Restart Apache after deployment
