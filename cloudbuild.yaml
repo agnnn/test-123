@@ -14,27 +14,25 @@ steps:
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x .git/*
 
-  # Step 3: Directly copy ZIP file from GCS to the VM instance
-  - name: "gcr.io/cloud-builders/gcloud"
+  # Step 2: Upload the ZIP file to GCS
+  - name: "gcr.io/cloud-builders/gsutil"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip"
+      - "cp"
+      - "deployment-artifact.zip"
+      - "gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip"
 
-  # Step 4: Run the cleanup script on the VM
+  # Step 3: Ensure the ZIP file exists before copying to the VM
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "bash -c 'unzip ~/artifact.zip -d /var/www/html && bash cicd-scripts/cleanup.sh'"
+      - "-c"
+      - |
+        echo "Checking if ZIP exists in GCS..."
+        gsutil ls gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip || exit 1
+        echo "Copying ZIP to VM..."
+        gcloud compute ssh ${_VM_INSTANCE} --zone=${_ZONE} --command "gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip"
 
-  # Step 5: Run rsync script on the VM to deploy files
+  # Step 4: Run cleanup before deployment
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -42,7 +40,17 @@ steps:
       - "${_VM_INSTANCE}"
       - "--zone=${_ZONE}"
       - "--command"
-      - "bash -c 'bash cicd-scripts/rsync.sh'"
+      - "bash -c 'bash cicd-scripts/cleanup.sh'"
+
+  # Step 5: Extract ZIP and sync files using rsync
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "compute"
+      - "ssh"
+      - "${_VM_INSTANCE}"
+      - "--zone=${_ZONE}"
+      - "--command"
+      - "bash -c 'unzip -o ~/artifact.zip -d /var/www/html && bash cicd-scripts/rsync.sh'"
 
   # Step 6: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
