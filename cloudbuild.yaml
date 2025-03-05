@@ -27,7 +27,7 @@ steps:
       - "${_VM_INSTANCE}:~/"
       - "--zone=${_ZONE}"
 
-  # Step 4: Cleanup old deployment, Extract, and Rsync to /var/www/html
+  # Step 4: Extract, Sync, and Set Permissions
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -37,22 +37,31 @@ steps:
       - "--command"
       - |
         set -e
-        echo "Installing dependencies..."
+        echo "Installing required dependencies..."
         sudo apt-get update && sudo apt-get install -y unzip rsync
-        
-        echo "Cleaning up old deployment..."
-        sudo rm -rf /tmp/pradeeptest-${_BRANCH_NAME}
-        
-        echo "Extracting new deployment..."
-        mkdir -p /tmp/pradeeptest-${_BRANCH_NAME}
-        unzip -o ~/deployment-artifact.zip -d /tmp/pradeeptest-${_BRANCH_NAME}
 
-        echo "Syncing files to /var/www/html..."
-        sudo rsync -av --delete /tmp/pradeeptest-${_BRANCH_NAME}/ /var/www/html/
+        TMP_DIR="/tmp/pradeeptest-${_BRANCH_NAME}"
+        FINAL_DESTINATION="/var/www/pradeeptest-${_BRANCH_NAME}"
+
+        echo "Cleaning up previous deployment..."
+        sudo rm -rf "$TMP_DIR"
+        sudo mkdir -p "$TMP_DIR"
+
+        echo "Extracting deployment ZIP..."
+        sudo unzip -o ~/deployment-artifact.zip -d "$TMP_DIR"
+
+        echo "Syncing files to $FINAL_DESTINATION..."
+        sudo mkdir -p "$FINAL_DESTINATION"
+        sudo rsync -av --delete "$TMP_DIR/" "$FINAL_DESTINATION/"
 
         echo "Setting correct ownership and permissions..."
-        sudo chown -R www-data:www-data /var/www/html
-        sudo chmod -R 775 /var/www/html
+        sudo chown -R ubuntu:ubuntu "$FINAL_DESTINATION"
+        sudo chmod -R 775 "$FINAL_DESTINATION"
+
+        if [ -d "$FINAL_DESTINATION/data/" ]; then
+          echo "Setting www-data ownership for $FINAL_DESTINATION/data/"
+          sudo chown -R www-data:www-data "$FINAL_DESTINATION/data/"
+        fi
 
   # Step 5: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
