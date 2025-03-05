@@ -1,13 +1,6 @@
+timeout: 900s  # Moved timeout to the top level
+
 steps:
-  - name: 'gcr.io/cloud-builders/bash'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -e
-        echo "Deploying to VM: ${_INSTANCE_NAME}"
-        echo "Using GCS Bucket: ${_GCS_BUCKET}"
-        
   - name: "gcr.io/cloud-builders/bash"
     entrypoint: "bash"
     args:
@@ -53,5 +46,4 @@ steps:
       - "bash -s < cicd-scripts/rsync.sh"
 
 options:
-  logging: "CLOUD_LOGGING_ONLY"
-  timeout: "900s"
+  logging: CLOUD_LOGGING_ONLY  # Keep logging under options
