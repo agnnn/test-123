@@ -41,7 +41,23 @@ steps:
         sudo apt-get update && sudo apt-get install -y unzip
         gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip
 
-  # Step 5: Run cleanup script before deployment
+  # Step 5: Replace BRANCH_NAME_REPLACE with actual branch name in scripts
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "compute"
+      - "ssh"
+      - "${_VM_INSTANCE}"
+      - "--zone=${_ZONE}"
+      - "--command"
+      - |
+        set -e
+        echo "Replacing branch name placeholders..."
+        BRANCH_NAME="${_BRANCH_NAME}"
+        sed -i "s/BRANCH_NAME_REPLACE/$BRANCH_NAME/g" ~/cleanup.sh
+        sed -i "s/BRANCH_NAME_REPLACE/$BRANCH_NAME/g" ~/rsync.sh
+        cat ~/rsync.sh  # Debugging output
+
+  # Step 6: Run cleanup script before deployment
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -51,7 +67,7 @@ steps:
       - "--command"
       - "bash ~/cleanup.sh"
 
-  # Step 6: Extract ZIP and sync files using rsync
+  # Step 7: Extract ZIP and sync files using rsync
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
@@ -65,8 +81,7 @@ steps:
           bash ~/rsync.sh
         "
 
-
-  # Step 7: Restart Apache after deployment
+  # Step 8: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -75,13 +90,6 @@ steps:
       - "--zone=${_ZONE}"
       - "--command"
       - "sudo systemctl restart apache2"
-
-# Upload artifacts to GCS (only the ZIP file)
-artifacts:
-  objects:
-    location: "gs://${_GCS_BUCKET}/artifacts/"
-    paths:
-      - "deployment-artifact.zip"
 
 substitutions:
   _VM_INSTANCE: "simplify-001"
