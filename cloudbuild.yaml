@@ -9,6 +9,8 @@ steps:
       - "-c"
       - |
         set -e
+        echo "Installing zip..."
+        apt-get update && apt-get install -y zip
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x .git/*
 
