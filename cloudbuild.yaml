@@ -26,8 +26,8 @@ steps:
       - |
         set -e
         echo "Replacing branch name in scripts..."
-        sed -i "s/pradeeptest-\$main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
-        sed -i "s/pradeeptest-\$main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
+        sed -i "s/pradeeptest-main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
+        sed -i "s/pradeeptest-main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
         cat cicd-scripts/cleanup.sh
         cat cicd-scripts/rsync.sh
 
@@ -72,9 +72,13 @@ steps:
       - |
         set -e
         gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "
-          sudo chown -R \$(whoami):\$(whoami) /var/www/html &&
-          sudo chmod -R 775 /var/www/html &&
+          echo 'Ensuring directories exist...'
+          sudo mkdir -p /var/www/pradeeptest-${_BRANCH_NAME} &&
+          sudo chown -R \$(whoami):\$(whoami) /var/www/html /var/www/pradeeptest-${_BRANCH_NAME} &&
+          sudo chmod -R 775 /var/www/html /var/www/pradeeptest-${_BRANCH_NAME} &&
+          echo 'Extracting deployment artifacts...'
           sudo unzip -o ~/artifact.zip -d /var/www/html &&
+          echo 'Running rsync script...'
           bash ~/rsync.sh ${_BRANCH_NAME}
         "
 
