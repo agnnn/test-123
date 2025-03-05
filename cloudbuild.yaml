@@ -8,7 +8,7 @@ steps:
     args:
       - "-c"
       - |
-        set -e
+        set -e  # Exit on any error
         echo "Installing zip..."
         apt-get update && apt-get install -y zip
         echo "Creating deployment ZIP archive..."
@@ -23,73 +23,66 @@ steps:
 
   # Step 3: Force SSH key propagation to VM before copying files
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "echo 'SSH key propagated'"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "echo 'SSH key propagated'"
 
   # Step 4: Copy cleanup and rsync scripts directly to VM
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "scp"
-      - "cicd-scripts/cleanup.sh"
-      - "cicd-scripts/rsync.sh"
-      - "${_VM_INSTANCE}:~/"
-      - "--zone=${_ZONE}"
+      - "-c"
+      - |
+        set -e
+        gcloud compute scp cicd-scripts/cleanup.sh cicd-scripts/rsync.sh "${_VM_INSTANCE}:~/" --zone="${_ZONE}"
 
   # Step 5: Download ZIP from GCS to VM
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip"
 
   # Step 6: Install unzip on the VM (Fix for 'unzip: command not found')
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "sudo apt-get update && sudo apt-get install -y unzip"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "sudo apt-get update && sudo apt-get install -y unzip"
 
   # Step 7: Run cleanup before deployment
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "bash ~/cleanup.sh"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "bash ~/cleanup.sh"
 
   # Step 8: Extract ZIP and sync files using rsync
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "unzip -o ~/artifact.zip -d /var/www/html && bash ~/rsync.sh"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "unzip -o ~/artifact.zip -d /var/www/html && bash ~/rsync.sh"
 
   # Step 9: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "sudo systemctl restart apache2"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "sudo systemctl restart apache2"
 
 # Upload artifacts to GCS (only the ZIP file)
 artifacts:
