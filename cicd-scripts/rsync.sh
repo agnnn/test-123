@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define staging and final destination paths
-TMP_DIR="/tmp/pradeeptest-$BRANCH_NAME_REPLACE"
-FINAL_DESTINATION="/var/www/pradeeptest-$BRANCH_NAME_REPLACE"
+TMP_DIR="/tmp/pradeeptest-$1"
+FINAL_DESTINATION="/var/www/pradeeptest-$1"
 
 # Ensure TMP_DIR exists before running rsync
 if [ ! -d "$TMP_DIR" ]; then
@@ -14,5 +14,5 @@ fi
 # Run rsync command to sync files from staging directory to final destination
 rsync -avR --delete --no-relative "$TMP_DIR/" "$FINAL_DESTINATION/"
 
-# Keep www-data:www-data ownership on data/ folder 
-find "/var/www/pradeeptest-$BRANCH_NAME_REPLACE/data/" -type d -exec chown www-data:www-data {} +
+# Keep www-data:www-data ownership on data/ folder
+find "$FINAL_DESTINATION/data/" -type d -exec chown www-data:www-data {} +
