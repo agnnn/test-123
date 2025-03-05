@@ -53,13 +53,18 @@ steps:
 
   # Step 6: Extract ZIP and sync files using rsync
   - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "unzip -o ~/artifact.zip -d /var/www/html && bash ~/rsync.sh"
+      - "-c"
+      - |
+        set -e
+        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "
+          sudo chown -R \$(whoami):\$(whoami) /var/www/html &&
+          sudo chmod -R 775 /var/www/html &&
+          sudo unzip -o ~/artifact.zip -d /var/www/html &&
+          bash ~/rsync.sh
+        "
+
 
   # Step 7: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
