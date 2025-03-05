@@ -1,47 +1,65 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
+  # Step 1: Create a ZIP file of the deployment contents (excluding .git)
   - name: "gcr.io/cloud-builders/bash"
     entrypoint: "bash"
     args:
       - "-c"
       - |
         set -e
-        echo "Extracting branch name..."
-        BRANCH_NAME="${_BRANCH_NAME}"
-        BRANCH_NAME="${BRANCH_NAME:-$SHORT_SHA}" # Fallback to commit hash if branch name is empty
-        sed -i "s|BRANCH_NAME_REPLACE|${BRANCH_NAME}|g" cicd-scripts/rsync.sh
-        sed -i "s|BRANCH_NAME_REPLACE|${BRANCH_NAME}|g" cicd-scripts/cleanup.sh
+        echo "Creating deployment ZIP archive..."
+        zip -r artifact.zip . -x ".git/*"
 
-  - name: "gcr.io/cloud-builders/bash"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        set -e
-        echo "Installing zip and creating archive..."
-        apt-get update && apt-get install -y zip
-        zip -r deployment-artifact.zip . -x .git/*
-
+  # Step 2: Upload the ZIP file to GCS bucket
   - name: "gcr.io/cloud-builders/gsutil"
     args:
       - "cp"
-      - "deployment-artifact.zip"
-      - "gs://${_GCS_BUCKET}/${_BRANCH_NAME}/deployment-artifact.zip"
+      - "artifact.zip"
+      - "gs://${_GCS_BUCKET}/${_BRANCH_NAME}/artifact.zip"
 
+  # Step 3: Copy the ZIP file from GCS to the VM instance
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "compute"
+      - "scp"
+      - "artifact.zip"
+      - "${_VM_INSTANCE}:~/artifact.zip"
+      - "--zone=${_ZONE}"
+
+  # Step 4: Run the cleanup script on the VM
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
       - "ssh"
-      - "${_INSTANCE_NAME}"
+      - "${_VM_INSTANCE}"
+      - "--zone=${_ZONE}"
       - "--command"
       - "bash -s < cicd-scripts/cleanup.sh"
 
+  # Step 5: Run rsync script on the VM to deploy files
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
       - "ssh"
-      - "${_INSTANCE_NAME}"
+      - "${_VM_INSTANCE}"
+      - "--zone=${_ZONE}"
       - "--command"
       - "bash -s < cicd-scripts/rsync.sh"
 
-options:
-  logging: CLOUD_LOGGING_ONLY
+  # Step 6: Restart Apache after deployment
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "compute"
+      - "ssh"
+      - "${_VM_INSTANCE}"
+      - "--zone=${_ZONE}"
+      - "--command"
+      - "sudo systemctl restart apache2"
+
+substitutions:
+  _VM_INSTANCE: "simplify-001"
+  _ZONE: "us-central1-c"
+  _GCS_BUCKET: "simplify-storage-bucket"
+  _BRANCH_NAME: "main"
