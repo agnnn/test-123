@@ -26,8 +26,8 @@ steps:
       - |
         set -e
         echo "Replacing branch name in scripts..."
-        sed -i "s|BRANCH_NAME_REPLACE|${_BRANCH_NAME}|g" cicd-scripts/cleanup.sh
-        sed -i "s|BRANCH_NAME_REPLACE|${_BRANCH_NAME}|g" cicd-scripts/rsync.sh
+        sed -i "s/\$BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
+        sed -i "s/\$BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
         cat cicd-scripts/cleanup.sh
         cat cicd-scripts/rsync.sh
 
