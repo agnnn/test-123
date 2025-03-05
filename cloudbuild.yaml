@@ -26,8 +26,8 @@ steps:
       - |
         set -e
         echo "Replacing branch name in scripts..."
-        sed -i "s/\$BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
-        sed -i "s/\$BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
+        sed -i "s/pradeeptest-\$main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
+        sed -i "s/pradeeptest-\$main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
         cat cicd-scripts/cleanup.sh
         cat cicd-scripts/rsync.sh
 
@@ -62,7 +62,7 @@ steps:
       - "${_VM_INSTANCE}"
       - "--zone=${_ZONE}"
       - "--command"
-      - "bash ~/cleanup.sh"
+      - "bash ~/cleanup.sh ${_BRANCH_NAME}"
 
   # Step 7: Extract ZIP and sync files using rsync
   - name: "gcr.io/cloud-builders/gcloud"
@@ -75,7 +75,7 @@ steps:
           sudo chown -R \$(whoami):\$(whoami) /var/www/html &&
           sudo chmod -R 775 /var/www/html &&
           sudo unzip -o ~/artifact.zip -d /var/www/html &&
-          bash ~/rsync.sh
+          bash ~/rsync.sh ${_BRANCH_NAME}
         "
 
   # Step 8: Restart Apache after deployment
