@@ -3,14 +3,12 @@ options:
 
 steps:
   # Step 1: Create a ZIP file of the deployment contents (excluding .git)
-  - name: "ubuntu"
+  - name: "gcr.io/cloud-builders/git"
     entrypoint: "bash"
     args:
       - "-c"
       - |
         set -e
-        echo "Installing zip..."
-        apt-get update && apt-get install -y zip
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x ".git/*" ".gitignore"
 
@@ -27,7 +25,7 @@ steps:
       - "${_VM_INSTANCE}:~/"
       - "--zone=${_ZONE}"
 
-  # Step 4: Extract, Sync, and Set Permissions
+  # Step 4: Cleanup, Extract, and Rsync to /var/www/pradeeptest-${_BRANCH_NAME}/
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -40,27 +38,28 @@ steps:
         echo "Installing required dependencies..."
         sudo apt-get update && sudo apt-get install -y unzip rsync
 
+        DEPLOY_DIR="/var/www/pradeeptest-${_BRANCH_NAME}"
         TMP_DIR="/tmp/pradeeptest-${_BRANCH_NAME}"
-        FINAL_DEST="/var/www/pradeeptest-${_BRANCH_NAME}"
 
         echo "Cleaning up previous deployment..."
-        sudo rm -rf "$TMP_DIR"
-        sudo mkdir -p "$TMP_DIR"
+        [ -d "$TMP_DIR" ] && sudo rm -rf "$TMP_DIR"
+        [ -d "$DEPLOY_DIR" ] && sudo rm -rf "$DEPLOY_DIR"
 
         echo "Extracting deployment ZIP..."
+        sudo mkdir -p "$TMP_DIR"
         sudo unzip -o ~/deployment-artifact.zip -d "$TMP_DIR"
 
-        echo "Syncing files to $FINAL_DEST..."
-        sudo mkdir -p "$FINAL_DEST"
-        sudo rsync -av --delete "$TMP_DIR/" "$FINAL_DEST/"
+        echo "Syncing files to $DEPLOY_DIR..."
+        sudo mkdir -p "$DEPLOY_DIR"
+        sudo rsync -av --delete "$TMP_DIR/" "$DEPLOY_DIR/"
 
         echo "Setting correct ownership and permissions..."
-        sudo chown -R ubuntu:ubuntu "$FINAL_DEST"
-        sudo chmod -R 775 "$FINAL_DEST"
+        sudo chown -R www-data:www-data "$DEPLOY_DIR"
+        sudo chmod -R 775 "$DEPLOY_DIR"
 
-        if [ -d "$FINAL_DEST/data/" ]; then
-          echo "Setting www-data ownership for $FINAL_DEST/data/"
-          sudo chown -R www-data:www-data "$FINAL_DEST/data/"
+        if [ -d "$DEPLOY_DIR/data/" ]; then
+          echo "Setting ownership for data directory..."
+          sudo chown -R www-data:www-data "$DEPLOY_DIR/data/"
         fi
 
   # Step 5: Restart Apache after deployment
