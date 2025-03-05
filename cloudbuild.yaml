@@ -4,7 +4,6 @@ options:
 steps:
   # Step 1: Create a ZIP file of the deployment contents (excluding .git)
   - name: "ubuntu"
-    id: "Create Deployment ZIP"
     entrypoint: "bash"
     args:
       - "-c"
@@ -15,14 +14,12 @@ steps:
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x ".git/*" ".gitignore"
 
-  # Step 2: Upload the ZIP file to GCS
+  # Step 2: Upload the ZIP to GCS
   - name: "gcr.io/cloud-builders/gsutil"
-    id: "Upload ZIP to GCS"
     args: ["cp", "deployment-artifact.zip", "gs://${_GCS_BUCKET}/artifacts/"]
 
-  # Step 3: Copy the ZIP file from GCS to the target VM
+  # Step 3: Copy deployment ZIP to the VM
   - name: "gcr.io/cloud-builders/gcloud"
-    id: "Copy ZIP to VM"
     args:
       - "compute"
       - "scp"
@@ -30,9 +27,8 @@ steps:
       - "${_VM_INSTANCE}:~/"
       - "--zone=${_ZONE}"
 
-  # Step 4: Prepare Deployment Directory on VM
+  # Step 4: Cleanup old deployment, Extract, and Rsync to /var/www/pradeeptest-${BRANCH_NAME}/
   - name: "gcr.io/cloud-builders/gcloud"
-    id: "Prepare Deployment on VM"
     args:
       - "compute"
       - "ssh"
@@ -44,56 +40,25 @@ steps:
         echo "Installing dependencies..."
         sudo apt-get update && sudo apt-get install -y unzip rsync
 
-        TMP_DIR="/tmp/pradeeptest-${_BRANCH_NAME}"
-        DEPLOY_DIR="/var/www/pradeeptest-${_BRANCH_NAME}"
-
         echo "Cleaning up old deployment..."
-        sudo rm -rf "$DEPLOY_DIR" || { echo "Cleanup failed"; exit 1; }
-        sudo rm -rf "$TMP_DIR" || { echo "Cleanup failed"; exit 1; }
-
-  # Step 5: Extract and Sync Deployment Files
-  - name: "gcr.io/cloud-builders/gcloud"
-    id: "Extract and Sync Deployment"
-    args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - |
-        set -e
-        TMP_DIR="/tmp/pradeeptest-${_BRANCH_NAME}"
-        DEPLOY_DIR="/var/www/pradeeptest-${_BRANCH_NAME}"
+        sudo rm -rf /var/www/pradeeptest-${BRANCH_NAME} || { echo "Cleanup failed"; exit 1; }
+        sudo rm -rf /tmp/pradeeptest-${BRANCH_NAME} || { echo "Cleanup failed"; exit 1; }
 
         echo "Extracting new deployment..."
-        mkdir -p "$TMP_DIR" || { echo "mkdir failed"; exit 1; }
-        unzip -o ~/deployment-artifact.zip -d "$TMP_DIR" || { echo "Unzip failed"; exit 1; }
+        mkdir -p /tmp/pradeeptest-${BRANCH_NAME} || { echo "mkdir failed"; exit 1; }
+        unzip -o ~/deployment-artifact.zip -d /tmp/pradeeptest-${BRANCH_NAME} || { echo "Unzip failed"; exit 1; }
 
-        echo "Syncing files to deployment directory..."
-        sudo mkdir -p "$DEPLOY_DIR" || { echo "mkdir failed"; exit 1; }
-        sudo rsync -av --delete "$TMP_DIR/" "$DEPLOY_DIR/" || { echo "rsync failed"; exit 1; }
+        echo "Syncing files to /var/www/pradeeptest-${BRANCH_NAME}/..."
+        sudo mkdir -p /var/www/pradeeptest-${BRANCH_NAME} || { echo "mkdir failed"; exit 1; }
+        sudo rsync -av --delete /tmp/pradeeptest-${BRANCH_NAME}/ /var/www/pradeeptest-${BRANCH_NAME}/ || { echo "rsync failed"; exit 1; }
 
-  # Step 6: Set Correct Permissions
+        echo "Setting correct ownership and permissions..."
+        sudo chown -R www-data:www-data /var/www/pradeeptest-${BRANCH_NAME} || { echo "chown failed"; exit 1; }
+        sudo find /var/www/pradeeptest-${BRANCH_NAME} -type d -exec chmod 755 {} + || { echo "chmod failed"; exit 1; }
+        sudo find /var/www/pradeeptest-${BRANCH_NAME} -type f -exec chmod 644 {} + || { echo "chmod failed"; exit 1; }
+
+  # Step 5: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
-    id: "Set Permissions"
-    args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - |
-        set -e
-        DEPLOY_DIR="/var/www/pradeeptest-${_BRANCH_NAME}"
-
-        echo "Setting ownership and permissions..."
-        sudo chown -R www-data:www-data "$DEPLOY_DIR" || { echo "chown failed"; exit 1; }
-        sudo find "$DEPLOY_DIR" -type d -exec chmod 755 {} + || { echo "chmod failed"; exit 1; }
-        sudo find "$DEPLOY_DIR" -type f -exec chmod 644 {} + || { echo "chmod failed"; exit 1; }
-
-  # Step 7: Restart Apache
-  - name: "gcr.io/cloud-builders/gcloud"
-    id: "Restart Apache"
     args:
       - "compute"
       - "ssh"
@@ -106,4 +71,3 @@ substitutions:
   _VM_INSTANCE: "simplify-001"
   _ZONE: "us-central1-c"
   _GCS_BUCKET: "simplify-storage-bucket"
-  _BRANCH_NAME: "main"
