@@ -3,10 +3,10 @@ options:
 
 steps:
   # Step 1: Create a ZIP file of the deployment contents (excluding .git)
-  - name: 'ubuntu'
-    entrypoint: 'bash'
+  - name: "ubuntu"
+    entrypoint: "bash"
     args:
-      - '-c'
+      - "-c"
       - |
         set -e
         echo "Creating deployment ZIP archive..."
@@ -15,24 +15,19 @@ steps:
   # Step 2: Upload ZIP file as an artifact to GCS
 artifacts:
   objects:
-    location: 'gs://${_GCS_BUCKET}/artifacts/'
+    location: "gs://${_GCS_BUCKET}/artifacts/"
     paths:
-      - 'deployment-artifact.zip'
+      - "deployment-artifact.zip"
 
-  # Step 3: Copy ZIP file from GCS to the VM instance
-  - name: "gcr.io/cloud-builders/gsutil"
-    args:
-      - "cp"
-      - "gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip"
-      - "./artifact.zip"
-
+  # Step 3: Directly copy ZIP file from GCS to the VM instance
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
-      - "scp"
-      - "artifact.zip"
-      - "${_VM_INSTANCE}:~/artifact.zip"
+      - "ssh"
+      - "${_VM_INSTANCE}"
       - "--zone=${_ZONE}"
+      - "--command"
+      - "gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip"
 
   # Step 4: Run the cleanup script on the VM
   - name: "gcr.io/cloud-builders/gcloud"
@@ -42,7 +37,7 @@ artifacts:
       - "${_VM_INSTANCE}"
       - "--zone=${_ZONE}"
       - "--command"
-      - "bash -s < cicd-scripts/cleanup.sh"
+      - "bash -c 'unzip ~/artifact.zip -d /var/www/html && bash cicd-scripts/cleanup.sh'"
 
   # Step 5: Run rsync script on the VM to deploy files
   - name: "gcr.io/cloud-builders/gcloud"
@@ -52,7 +47,7 @@ artifacts:
       - "${_VM_INSTANCE}"
       - "--zone=${_ZONE}"
       - "--command"
-      - "bash -s < cicd-scripts/rsync.sh"
+      - "bash -c 'bash cicd-scripts/rsync.sh'"
 
   # Step 6: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
@@ -65,6 +60,7 @@ artifacts:
       - "sudo systemctl restart apache2"
 
 substitutions:
-  _VM_INSTANCE: "webapp-instance-20250210-150325"
+  _VM_INSTANCE: "simplify-001"
   _ZONE: "us-central1-c"
-  _GCS_BUCKET: "test-pradeep-123ssx"
+  _GCS_BUCKET: "simplify-storage-bucket"
+  _BRANCH_NAME: "main"
