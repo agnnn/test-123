@@ -14,20 +14,24 @@ steps:
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x ".git/*" ".gitignore"
 
-  # Step 2: Replace branch name placeholder in scripts
+  # Step 2: Upload the ZIP to GCS
+  - name: "gcr.io/cloud-builders/gsutil"
+    args: ["cp", "deployment-artifact.zip", "gs://${_GCS_BUCKET}/artifacts/"]
+
+  # Step 3: Replace branch name placeholders in scripts
   - name: "ubuntu"
     entrypoint: "bash"
     args:
       - "-c"
       - |
-        sed -i "s/BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
-        sed -i "s/BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
+        set -e
+        echo "Replacing branch name in scripts..."
+        sed -i "s/\$BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
+        sed -i "s/\$BRANCH_NAME_REPLACE/${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
+        cat cicd-scripts/cleanup.sh
+        cat cicd-scripts/rsync.sh
 
-  # Step 3: Upload the ZIP to GCS
-  - name: "gcr.io/cloud-builders/gsutil"
-    args: ["cp", "deployment-artifact.zip", "gs://${_GCS_BUCKET}/artifacts/"]
-
-  # Step 4: Copy updated cleanup and rsync scripts to VM
+  # Step 4: Copy cleanup and rsync scripts to VM
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
