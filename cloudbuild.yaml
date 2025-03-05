@@ -3,23 +3,29 @@ options:
 
 steps:
   # Step 1: Create a ZIP file of the deployment contents (excluding .git)
-  - name: "gcr.io/cloud-builders/bash"
-    entrypoint: "bash"
+  - name: 'ubuntu'
+    entrypoint: 'bash'
     args:
-      - "-c"
+      - '-c'
       - |
         set -e
         echo "Creating deployment ZIP archive..."
-        zip -r artifact.zip . -x ".git/*"
+        zip -r deployment-artifact.zip . -x .git/*
 
-  # Step 2: Upload the ZIP file to GCS bucket
+  # Step 2: Upload ZIP file as an artifact to GCS
+artifacts:
+  objects:
+    location: 'gs://${_GCS_BUCKET}/artifacts/'
+    paths:
+      - 'deployment-artifact.zip'
+
+  # Step 3: Copy ZIP file from GCS to the VM instance
   - name: "gcr.io/cloud-builders/gsutil"
     args:
       - "cp"
-      - "artifact.zip"
-      - "gs://${_GCS_BUCKET}/${_BRANCH_NAME}/artifact.zip"
+      - "gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip"
+      - "./artifact.zip"
 
-  # Step 3: Copy the ZIP file from GCS to the VM instance
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -59,7 +65,6 @@ steps:
       - "sudo systemctl restart apache2"
 
 substitutions:
-  _VM_INSTANCE: "simplify-001"
+  _VM_INSTANCE: "webapp-instance-20250210-150325"
   _ZONE: "us-central1-c"
-  _GCS_BUCKET: "simplify-storage-bucket"
-  _BRANCH_NAME: "main"
+  _GCS_BUCKET: "test-pradeep-123ssx"
