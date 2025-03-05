@@ -18,30 +18,16 @@ steps:
   - name: "gcr.io/cloud-builders/gsutil"
     args: ["cp", "deployment-artifact.zip", "gs://${_GCS_BUCKET}/artifacts/"]
 
-  # Step 3: Replace branch name placeholders in scripts
-  - name: "ubuntu"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        set -e
-        echo "Replacing branch name in scripts..."
-        sed -i "s/pradeeptest-main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/cleanup.sh
-        sed -i "s/pradeeptest-main/pradeeptest-${_BRANCH_NAME}/g" cicd-scripts/rsync.sh
-        cat cicd-scripts/cleanup.sh
-        cat cicd-scripts/rsync.sh
-
-  # Step 4: Copy cleanup and rsync scripts to VM
+  # Step 3: Copy deployment ZIP to the VM
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
       - "scp"
-      - "cicd-scripts/cleanup.sh"
-      - "cicd-scripts/rsync.sh"
+      - "deployment-artifact.zip"
       - "${_VM_INSTANCE}:~/"
       - "--zone=${_ZONE}"
 
-  # Step 5: Download ZIP from GCS to VM & install unzip
+  # Step 4: Cleanup old deployment, Extract, and Rsync to /var/www/html
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
@@ -51,38 +37,24 @@ steps:
       - "--command"
       - |
         set -e
-        sudo apt-get update && sudo apt-get install -y unzip
-        gsutil cp gs://${_GCS_BUCKET}/artifacts/deployment-artifact.zip ~/artifact.zip
+        echo "Installing dependencies..."
+        sudo apt-get update && sudo apt-get install -y unzip rsync
+        
+        echo "Cleaning up old deployment..."
+        sudo rm -rf /tmp/pradeeptest-${_BRANCH_NAME}
+        
+        echo "Extracting new deployment..."
+        mkdir -p /tmp/pradeeptest-${_BRANCH_NAME}
+        unzip -o ~/deployment-artifact.zip -d /tmp/pradeeptest-${_BRANCH_NAME}
 
-  # Step 6: Run cleanup script before deployment
-  - name: "gcr.io/cloud-builders/gcloud"
-    args:
-      - "compute"
-      - "ssh"
-      - "${_VM_INSTANCE}"
-      - "--zone=${_ZONE}"
-      - "--command"
-      - "bash ~/cleanup.sh ${_BRANCH_NAME}"
+        echo "Syncing files to /var/www/html..."
+        sudo rsync -av --delete /tmp/pradeeptest-${_BRANCH_NAME}/ /var/www/html/
 
-  # Step 7: Extract ZIP and sync files using rsync
-  - name: "gcr.io/cloud-builders/gcloud"
-    entrypoint: "bash"
-    args:
-      - "-c"
-      - |
-        set -e
-        gcloud compute ssh "${_VM_INSTANCE}" --zone="${_ZONE}" --command "
-          echo 'Ensuring directories exist...'
-          sudo mkdir -p /var/www/pradeeptest-${_BRANCH_NAME} &&
-          sudo chown -R \$(whoami):\$(whoami) /var/www/html /var/www/pradeeptest-${_BRANCH_NAME} &&
-          sudo chmod -R 775 /var/www/html /var/www/pradeeptest-${_BRANCH_NAME} &&
-          echo 'Extracting deployment artifacts...'
-          sudo unzip -o ~/artifact.zip -d /var/www/html &&
-          echo 'Running rsync script...'
-          bash ~/rsync.sh ${_BRANCH_NAME}
-        "
+        echo "Setting correct ownership and permissions..."
+        sudo chown -R www-data:www-data /var/www/html
+        sudo chmod -R 775 /var/www/html
 
-  # Step 8: Restart Apache after deployment
+  # Step 5: Restart Apache after deployment
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       - "compute"
