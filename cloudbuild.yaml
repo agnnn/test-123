@@ -1,4 +1,4 @@
-timeout: 900s  # Moved timeout to the top level
+timeout: 900s  # Ensure timeout is at the top level
 
 steps:
   - name: "gcr.io/cloud-builders/bash"
@@ -10,8 +10,8 @@ steps:
         echo "Extracting branch name..."
         BRANCH_NAME="${_BRANCH_NAME}"
         BRANCH_NAME="${BRANCH_NAME:-$SHORT_SHA}" # Fallback to commit hash if branch name is empty
-        sed -i "s|\$BRANCH_NAME_REPLACE|${BRANCH_NAME}|g" cicd-scripts/rsync.sh
-        sed -i "s|\$BRANCH_NAME_REPLACE|${BRANCH_NAME}|g" cicd-scripts/cleanup.sh"
+        sed -i "s|BRANCH_NAME_REPLACE|${BRANCH_NAME}|g" cicd-scripts/rsync.sh
+        sed -i "s|BRANCH_NAME_REPLACE|${BRANCH_NAME}|g" cicd-scripts/cleanup.sh
 
   - name: "gcr.io/cloud-builders/bash"
     entrypoint: "bash"
@@ -46,4 +46,4 @@ steps:
       - "bash -s < cicd-scripts/rsync.sh"
 
 options:
-  logging: CLOUD_LOGGING_ONLY  # Keep logging under options
+  logging: CLOUD_LOGGING_ONLY
