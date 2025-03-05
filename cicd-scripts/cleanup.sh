@@ -1,3 +1,2 @@
 #!/bin/bash
-
-rm -rf /tmp/pradeeptest-$BRANCH_NAME_REPLACE
+rm -rf /tmp/pradeeptest-$1
