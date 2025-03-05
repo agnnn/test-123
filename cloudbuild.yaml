@@ -12,13 +12,6 @@ steps:
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x .git/*
 
-  # Step 2: Upload ZIP file as an artifact to GCS
-artifacts:
-  objects:
-    location: "gs://${_GCS_BUCKET}/artifacts/"
-    paths:
-      - "deployment-artifact.zip"
-
   # Step 3: Directly copy ZIP file from GCS to the VM instance
   - name: "gcr.io/cloud-builders/gcloud"
     args:
@@ -58,6 +51,13 @@ artifacts:
       - "--zone=${_ZONE}"
       - "--command"
       - "sudo systemctl restart apache2"
+
+# Upload ZIP file as an artifact to GCS
+artifacts:
+  objects:
+    location: "gs://${_GCS_BUCKET}/artifacts/"
+    paths:
+      - "deployment-artifact.zip"
 
 substitutions:
   _VM_INSTANCE: "simplify-001"
