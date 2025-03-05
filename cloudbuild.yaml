@@ -3,12 +3,14 @@ options:
 
 steps:
   # Step 1: Create a ZIP file of the deployment contents (excluding .git)
-  - name: "gcr.io/cloud-builders/git"
+  - name: "ubuntu"
     entrypoint: "bash"
     args:
       - "-c"
       - |
         set -e
+        echo "Installing zip..."
+        apt-get update && apt-get install -y zip
         echo "Creating deployment ZIP archive..."
         zip -r deployment-artifact.zip . -x ".git/*" ".gitignore"
 
