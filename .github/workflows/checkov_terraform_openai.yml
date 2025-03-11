@@ -87,8 +87,13 @@ jobs:
           name: openai_analysis
           path: openai_analysis.json
 
-      - name: Post OpenAI Analysis to PR
+      - name: Comment on PR with OpenAI Analysis
         uses: thollander/actions-comment-pull-request@v2
         with:
-          message: "🔍 **OpenAI Security Analysis**:\n$(jq -r .choices[0].message.content openai_analysis.json)"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          message: |
+            🔍 **OpenAI Security Analysis**:
+            $(jq -r .choices[0].message.content openai_analysis.json)
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          mode: upsert
+          create_if_not_exists: true
+
