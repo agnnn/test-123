@@ -65,18 +65,21 @@ jobs:
 
       - name: Analyze with OpenAI
         run: |
-          CHECKOV_OUTPUT=$(cat checkov_report.json | jq -r .)
           RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
             -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{
+            --data @- <<EOF
+            {
               "model": "gpt-4",
               "messages": [
                 {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
-                {"role": "user", "content": "'"$CHECKOV_OUTPUT"'"}
+                {"role": "user", "content": "$(jq -c . checkov_report.json | head -c 10000)"}
               ]
-            }')
-          echo "$RESPONSE" > openai_analysis.json
+            }
+          EOF
+              )
+              echo "$RESPONSE" > openai_analysis.json
+
 
       - name: Upload AI Analysis as Artifact
         uses: actions/upload-artifact@v4
