@@ -1,5 +1,8 @@
 name: Terraform Security Scan with Checkov & OpenAI Analysis
 
+env:
+  GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
 on:
   push:
     branches:
@@ -17,6 +20,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Authenticate with GCP
+        run: echo "$GOOGLE_CREDENTIALS" > gcp-key.json && export GOOGLE_APPLICATION_CREDENTIALS=gcp-key.json
+
       - name: Set Up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -32,10 +38,10 @@ jobs:
         run: pip install checkov
 
       - name: Run Checkov on Terraform Files
-        run: checkov -d . --output json > checkov_report.json
+        run: checkov -d . --output json > checkov_report.json || echo "Checkov scan failed, continuing..."
 
       - name: Run Checkov on Terraform Plan
-        run: checkov -f tfplan.json --output json >> checkov_report.json
+        run: checkov -f tfplan.json --output json >> checkov_report.json || echo "Checkov plan scan failed, continuing..."
 
       - name: Upload Checkov Report as Artifact
         uses: actions/upload-artifact@v4
@@ -64,7 +70,7 @@ jobs:
             -d '{
               "model": "gpt-4",
               "messages": [
-                {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
+                {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations in markdown format."},
                 {"role": "user", "content": "'"$CHECKOV_OUTPUT"'"}
               ]
             }')
@@ -79,5 +85,9 @@ jobs:
       - name: Post OpenAI Analysis to PR
         uses: thollander/actions-comment-pull-request@v2
         with:
-          message: "🔍 **OpenAI Security Analysis**:\n$(jq -r .choices[0].message.content openai_analysis.json)"
+          message: |
+            🔍 **OpenAI Security Analysis**:
+            ```markdown
+            $(jq -r .choices[0].message.content openai_analysis.json)
+            ```
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

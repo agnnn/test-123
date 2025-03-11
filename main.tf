@@ -1,7 +1,9 @@
 provider "google" {
   project = "pradeep-sandbox"
   region  = "us-central1"
+  credentials = jsondecode(var.google_credentials)
 }
+variable "google_credentials" {}
 
 # 🚨 Intentionally insecure storage bucket (public access enabled) 🚨
 resource "google_storage_bucket" "public_bucket" {
