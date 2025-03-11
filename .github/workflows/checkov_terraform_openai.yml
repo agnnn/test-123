@@ -1,0 +1,83 @@
+name: Terraform Security Scan with Checkov & OpenAI Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  terraform_checkov:
+    name: Terraform Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
+
+      - name: Terraform Init & Plan
+        run: |
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -json tfplan > tfplan.json
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov on Terraform Files
+        run: checkov -d . --output json > checkov_report.json
+
+      - name: Run Checkov on Terraform Plan
+        run: checkov -f tfplan.json --output json >> checkov_report.json
+
+      - name: Upload Checkov Report as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov_report
+          path: checkov_report.json
+
+  analyze_with_openai:
+    name: AI Security Analysis
+    runs-on: ubuntu-latest
+    needs: terraform_checkov
+
+    steps:
+      - name: Download Checkov Report
+        uses: actions/download-artifact@v4
+        with:
+          name: checkov_report
+          path: .
+
+      - name: Analyze with OpenAI
+        run: |
+          CHECKOV_OUTPUT=$(cat checkov_report.json | jq -r .)
+          RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
+            -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "gpt-4",
+              "messages": [
+                {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
+                {"role": "user", "content": "'"$CHECKOV_OUTPUT"'"}
+              ]
+            }')
+          echo "$RESPONSE" > openai_analysis.json
+
+      - name: Upload AI Analysis as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openai_analysis
+          path: openai_analysis.json
+
+      - name: Post OpenAI Analysis to PR
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          message: "🔍 **OpenAI Security Analysis**:\n$(jq -r .choices[0].message.content openai_analysis.json)"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
