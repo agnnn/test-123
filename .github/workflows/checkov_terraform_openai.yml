@@ -87,13 +87,17 @@ jobs:
           name: openai_analysis
           path: openai_analysis.json
 
+      - name: Extract OpenAI Analysis Result
+        run: echo "RESULT=$(jq -r .choices[0].message.content openai_analysis.json)" >> $GITHUB_ENV
+
       - name: Comment on PR with OpenAI Analysis
         uses: thollander/actions-comment-pull-request@v2
         with:
           message: |
             🔍 **OpenAI Security Analysis**:
-            $(jq -r .choices[0].message.content openai_analysis.json)
+            ${{ env.RESULT }}
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
           mode: upsert
           create_if_not_exists: true
+
 
