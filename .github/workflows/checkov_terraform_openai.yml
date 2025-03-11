@@ -73,7 +73,7 @@ jobs:
             -H "Content-Type: application/json" \
             --data @- <<EOF
           {
-            "model": "gpt-4",
+            "model": "gpt-4o",
             "messages": [
               {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
               {"role": "user", "content": $CHECKOV_OUTPUT}
