@@ -65,25 +65,31 @@ jobs:
 
       - name: Analyze with OpenAI
         run: |
-          CHECKOV_OUTPUT=$(jq -c . checkov_report.json)  # Ensure valid JSON format
-          echo "Checkov Output: $CHECKOV_OUTPUT"  # Debugging
+        CHECKOV_OUTPUT=$(jq -c . checkov_report.json)  # Convert JSON to a single-line string
+        echo "Checkov Output: $CHECKOV_OUTPUT"  # Debugging
 
-          RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
-            -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d @- <<EOF
-          {
-            "model": "gpt-4",
-            "messages": [
-              {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
-              {"role": "user", "content": $CHECKOV_OUTPUT}
-            ]
-          }
-          EOF
-          )
+        # Escape double quotes in the JSON content
+        ESCAPED_CHECKOV_OUTPUT=$(echo "$CHECKOV_OUTPUT" | jq -Rs .)
 
-          echo "OpenAI Response: $RESPONSE"  # Debugging
-          echo "$RESPONSE" > openai_analysis.json
+        # Prepare JSON payload for OpenAI
+        JSON_PAYLOAD=$(jq -n --arg content "$ESCAPED_CHECKOV_OUTPUT" '{
+        model: "gpt-4",
+        messages: [
+          {role: "system", content: "Analyze this Terraform security report and provide recommendations."},
+          {role: "user", content: $content}
+        ]
+      }')
+
+        echo "JSON Payload: $JSON_PAYLOAD"  # Debugging
+
+        # Send request to OpenAI API
+        RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
+          -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d "$JSON_PAYLOAD")
+
+        echo "OpenAI Response: $RESPONSE"  # Debugging
+        echo "$RESPONSE" > openai_analysis.json
 
 
       - name: Upload AI Analysis as Artifact
