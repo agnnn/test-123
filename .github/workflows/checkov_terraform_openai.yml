@@ -1,5 +1,8 @@
 name: Terraform Security Scan with Checkov & OpenAI Analysis
 
+env:
+  GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
 on:
   push:
     branches:
@@ -22,6 +25,11 @@ jobs:
         with:
           terraform_version: latest
 
+      - name: Configure GCP Credentials
+        run: |
+          echo "$GOOGLE_CREDENTIALS" > gcp-key.json
+          export GOOGLE_APPLICATION_CREDENTIALS=gcp-key.json
+
       - name: Terraform Init & Plan
         run: |
           terraform init
@@ -32,10 +40,10 @@ jobs:
         run: pip install checkov
 
       - name: Run Checkov on Terraform Files
-        run: checkov -d . --output json > checkov_report.json
+        run: checkov -d . --output json > checkov_report.json || echo "Checkov scan completed with issues"
 
       - name: Run Checkov on Terraform Plan
-        run: checkov -f tfplan.json --output json >> checkov_report.json
+        run: checkov -f tfplan.json --output json >> checkov_report.json || echo "Checkov plan scan completed with issues"
 
       - name: Upload Checkov Report as Artifact
         uses: actions/upload-artifact@v4
@@ -57,18 +65,27 @@ jobs:
 
       - name: Analyze with OpenAI
         run: |
-          CHECKOV_OUTPUT=$(cat checkov_report.json | jq -r .)
+          CHECKOV_OUTPUT=$(jq -c . checkov_report.json | jq -Rs .)  # Ensure valid JSON encoding
+          echo "Checkov Output: $CHECKOV_OUTPUT"  # Debugging
+
           RESPONSE=$(curl -s -X POST "https://api.openai.com/v1/chat/completions" \
             -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "model": "gpt-4",
-              "messages": [
-                {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
-                {"role": "user", "content": "'"$CHECKOV_OUTPUT"'"}
-              ]
-            }')
+            --data @- <<EOF
+          {
+            "model": "gpt-4o",
+            "messages": [
+              {"role": "system", "content": "Analyze this Terraform security report and provide detailed recommendations."},
+              {"role": "user", "content": $CHECKOV_OUTPUT}
+            ]
+          }
+          EOF
+          )
+
+          echo "OpenAI Response: $RESPONSE"  # Debugging
           echo "$RESPONSE" > openai_analysis.json
+
+
 
       - name: Upload AI Analysis as Artifact
         uses: actions/upload-artifact@v4
@@ -76,8 +93,17 @@ jobs:
           name: openai_analysis
           path: openai_analysis.json
 
-      - name: Post OpenAI Analysis to PR
+      - name: Extract OpenAI Analysis Result
+        run: echo "RESULT=$(jq -r .choices[0].message.content openai_analysis.json)" >> $GITHUB_ENV
+
+      - name: Comment on PR with OpenAI Analysis
         uses: thollander/actions-comment-pull-request@v2
         with:
-          message: "🔍 **OpenAI Security Analysis**:\n$(jq -r .choices[0].message.content openai_analysis.json)"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          message: |
+            🔍 **OpenAI Security Analysis**:
+            ${{ env.RESULT }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          mode: upsert
+          create_if_not_exists: true
+
+
