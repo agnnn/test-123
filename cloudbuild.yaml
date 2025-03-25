@@ -26,6 +26,7 @@ steps:
       - "deployment-artifact.zip"
       - "${_VM_INSTANCE}:~/"
       - "--zone=${_ZONE}"
+      - "--tunnel-through-iap"
 
   # Step 4: Cleanup old deployment, Extract, and Rsync to /var/www/pradeeptest-${BRANCH_NAME}/
   - name: "gcr.io/cloud-builders/gcloud"
