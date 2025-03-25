@@ -66,6 +66,7 @@ steps:
       - "ssh"
       - "${_VM_INSTANCE}"
       - "--zone=${_ZONE}"
+      - "--tunnel-through-iap"
       - "--command"
       - "sudo systemctl restart apache2"
 
